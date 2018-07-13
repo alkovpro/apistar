@@ -437,7 +437,7 @@ class SwaggerCodec(BaseCodec):
     def encode(self, document, **options):
         schema_defs = {}
         paths = self.get_paths(document, schema_defs=schema_defs)
-        host, base_path = self.get_host_path(document.url)
+        scheme, host, base_path = self.get_host_path(document.url)
         swagger = SWAGGER.validate({
             'swagger': '2.0',
             'info': {
@@ -445,15 +445,19 @@ class SwaggerCodec(BaseCodec):
                 'title': document.title,
                 'description': document.description
             },
+            'schemes': [scheme],
             'host': host,
             'basePath': base_path,
-            'paths': paths
+            'consumes': ['application/json'],
+            'produces': ['application/json'],
+            'paths': paths,
         })
 
         if schema_defs:
             swagger['components'] = {'schemas': schema_defs}
 
         if not document.url:
+            swagger.pop('schemes')
             swagger.pop('host')
             swagger.pop('basePath')
 
@@ -466,12 +470,13 @@ class SwaggerCodec(BaseCodec):
 
     @staticmethod
     def get_host_path(url):
-        host = path = ''
+        scheme = host = path = ''
         if url:
             parsed = urlparse(url)
-            host = '{}://{}'.format(parsed.scheme, parsed.netloc)
+            scheme = parsed.scheme
+            host = parsed.netloc
             path = parsed.path
-        return host, path
+        return scheme, host, path
 
     def get_paths(self, document, schema_defs=None):
         paths = dict_type()
