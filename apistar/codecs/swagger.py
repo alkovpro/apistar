@@ -437,6 +437,7 @@ class SwaggerCodec(BaseCodec):
     def encode(self, document, **options):
         schema_defs = {}
         paths = self.get_paths(document, schema_defs=schema_defs)
+        host, base_path = self.get_host_path(document.url)
         swagger = SWAGGER.validate({
             'swagger': '2.0',
             'info': {
@@ -444,9 +445,8 @@ class SwaggerCodec(BaseCodec):
                 'title': document.title,
                 'description': document.description
             },
-            'servers': [{
-                'url': document.url
-            }],
+            'host': host,
+            'basePath': base_path,
             'paths': paths
         })
 
@@ -454,7 +454,8 @@ class SwaggerCodec(BaseCodec):
             swagger['components'] = {'schemas': schema_defs}
 
         if not document.url:
-            swagger.pop('servers')
+            swagger.pop('host')
+            swagger.pop('basePath')
 
         kwargs = {
             'ensure_ascii': False,
@@ -462,6 +463,15 @@ class SwaggerCodec(BaseCodec):
             'separators': (',', ': ')
         }
         return json.dumps(swagger, **kwargs).encode('utf-8')
+
+    @staticmethod
+    def get_host_path(url):
+        host = path = ''
+        if url:
+            parsed = urlparse(url)
+            host = '{}://{}'.format(parsed.scheme, parsed.netloc)
+            path = parsed.path
+        return host, path
 
     def get_paths(self, document, schema_defs=None):
         paths = dict_type()
